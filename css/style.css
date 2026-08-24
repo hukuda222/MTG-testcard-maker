@@ -1,0 +1,398 @@
+:root {
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", "Hiragino Sans", "Yu Gothic", sans-serif;
+  background: #f2efe8;
+  color: #222;
+}
+
+.site-header {
+  padding: 20px 24px;
+  text-align: center;
+}
+
+.site-header h1 {
+  margin: 0;
+  font-size: 1.6rem;
+}
+
+.app-container {
+  display: flex;
+  gap: 24px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  padding: 16px 24px 48px;
+}
+
+.deck-panel {
+  flex: 0 0 260px;
+  max-width: 260px;
+  position: sticky;
+  top: 16px;
+  align-self: flex-start;
+}
+
+.csv-import {
+  margin-bottom: 16px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #ddd;
+}
+
+.csv-import h2 {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+}
+
+.csv-format-details {
+  margin-top: 4px;
+}
+
+.csv-format-details summary {
+  font-size: 0.78rem;
+  color: #555;
+  cursor: pointer;
+  user-select: none;
+}
+
+.csv-format-details .hint {
+  margin: 6px 0 0;
+}
+
+.csv-import .hint {
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+#csvFileStatus {
+  display: block;
+  margin-top: 6px;
+}
+
+.csv-import button,
+.deck-nav button {
+  padding: 8px 14px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #222;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.csv-import button {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  font-size: 0.78rem;
+}
+
+.csv-import button:hover,
+.deck-nav button:hover {
+  background: #f0f0f0;
+}
+
+.deck-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.deck-nav button {
+  flex: 1 1 auto;
+}
+
+#deleteCardBtn {
+  color: #a12626;
+  border-color: #d9a3a3;
+}
+
+.download-actions {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #ddd;
+}
+
+.download-actions .hint {
+  margin-top: 8px;
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.deck-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  /* チップ1行36px×10行 + 行間gap9個 + 上下padding。11枚目以降はスクロールで見る */
+  max-height: 422px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  margin: 12px 0 0;
+  padding: 4px 4px 4px 0;
+}
+
+.deck-list li {
+  flex: 0 0 auto;
+  width: 100%;
+}
+
+.deck-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: #fff;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.deck-chip.selected {
+  background: #2a6f4b;
+  border-color: #2a6f4b;
+  color: #fff;
+}
+
+.deck-chip .chip-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.deck-chip .chip-remove {
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font-size: 0.9rem;
+  line-height: 1;
+  padding: 0 2px;
+  opacity: 0.7;
+}
+
+.deck-chip .chip-remove:hover {
+  opacity: 1;
+}
+
+.art-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 6px 0 0;
+  font-size: 0.82rem;
+  color: #555;
+}
+
+.link-btn {
+  border: none;
+  background: transparent;
+  color: #a12626;
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.pdf-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  background: #1f4e8c;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.pdf-btn:hover {
+  background: #193f70;
+}
+
+.pdf-btn:disabled,
+.deck-nav button:disabled {
+  background: #999;
+  color: #eee;
+  cursor: default;
+  border-color: #999;
+}
+
+.form-panel {
+  flex: 1 1 360px;
+  max-width: 420px;
+  background: #fff;
+  border-radius: 8px;
+  padding: 20px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.form-panel label {
+  display: block;
+  margin-top: 14px;
+  margin-bottom: 4px;
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+.form-panel label:first-child {
+  margin-top: 0;
+}
+
+.hint {
+  font-weight: 400;
+  color: #888;
+  font-size: 0.8rem;
+}
+
+.form-panel input[type="text"],
+.form-panel input[type="number"],
+.form-panel select,
+.form-panel textarea {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.92rem;
+  font-family: inherit;
+  resize: vertical;
+}
+
+.form-panel input[type="number"] {
+  max-width: 100px;
+}
+
+.form-panel input[type="file"] {
+  width: 100%;
+  font-size: 0.85rem;
+}
+
+.pt-fields {
+  display: flex;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.pt-field {
+  flex: 1;
+}
+
+.pt-field label {
+  margin-top: 0;
+}
+
+.stat-field-block {
+  margin-top: 0;
+}
+
+.stat-field-block .pt-fields {
+  margin-top: 14px;
+}
+
+.type-checkboxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  margin-top: 6px;
+}
+
+.type-checkboxes label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  font-weight: 400;
+  font-size: 0.85rem;
+}
+
+.type-checkboxes input[type="checkbox"] {
+  margin: 0;
+}
+
+.download-btn {
+  width: 100%;
+  padding: 10px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #fff;
+  background: #2a6f4b;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.download-btn:hover {
+  background: #23593c;
+}
+
+.download-btn:disabled {
+  background: #999;
+  cursor: default;
+}
+
+.preview-panel {
+  flex: 1 1 420px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: sticky;
+  top: 16px;
+}
+
+.preview-panel .download-actions {
+  width: 100%;
+  max-width: 480px;
+}
+
+#cardCanvas {
+  width: 100%;
+  max-width: 480px;
+  height: auto;
+  border-radius: 4%;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+@media (max-width: 1150px) {
+  .app-container {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .form-panel {
+    max-width: none;
+  }
+
+  .preview-panel {
+    position: static;
+  }
+
+  .deck-panel {
+    flex: 1 1 auto;
+    max-width: none;
+    position: static;
+  }
+}

@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MTGテストカードメーカー</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+
+<body>
+  <header class="site-header">
+    <h1>MTGテストカードメーカー</h1>
+  </header>
+
+  <main class="app-container">
+    <aside class="deck-panel">
+      <div class="csv-import">
+        <h2>CSVを使った機能</h2>
+        <details class="csv-format-details">
+          <summary>CSVフォーマットについて</summary>
+          <p class="hint">
+            1行目はヘッダー、2行目以降が各カードです。<br>
+            列: 名前, マナコスト, カードタイプ(「/」区切りで複数可),
+            その他のタイプ, パワー, タフネス, 忠誠度, ルールテキスト, フレイバーテキスト, 枚数。
+            読み込んだカードは既存のカード一覧に追加されます。
+          </p>
+        </details>
+        <input type="file" id="csvInput" accept=".csv,text/csv" class="visually-hidden" />
+        <button type="button" id="csvUploadBtn">カードリストをCSVからロード</button>
+        <span id="csvFileStatus" class="hint">選択されていません</span>
+        <button type="button" id="downloadSampleCsvBtn">サンプルCSVをダウンロード</button>
+        <button type="button" id="downloadCsvBtn">カードリストをCSVでダウンロード</button>
+      </div>
+
+      <div class="deck-nav">
+        <button type="button" id="addCardBtn">＋ カードを追加</button>
+        <button type="button" id="deleteCardBtn">このカードを削除</button>
+      </div>
+      <ul class="deck-list" id="deckList"></ul>
+    </aside>
+
+    <section class="preview-panel">
+      <canvas id="cardCanvas" width="900" height="1260" aria-label="カードプレビュー"></canvas>
+
+      <div class="download-actions">
+        <button type="button" id="downloadBtn" class="download-btn">このカードをPNGでダウンロード</button>
+        <button type="button" id="downloadPdfBtn" class="pdf-btn">全カードをA4 PDFでダウンロード</button>
+        <p class="hint">63×88mmのカードサイズで、A4用紙1枚あたり9枚配置されます。</p>
+      </div>
+    </section>
+
+    <section class="form-panel">
+      <form id="cardForm">
+        <label for="name">カード名</label>
+        <input type="text" id="name" name="name" value="Card Name" />
+
+        <label for="manaCost">マナコスト <span class="hint">(例: 2WW, XR, 1UB, W/U, 2/W, W/P)</span></label>
+        <input type="text" id="manaCost" name="manaCost" value="1G" />
+
+        <label for="copies">印刷枚数 <span class="hint">(同じカードをPDFに複数回入れたい場合。通常は1)</span></label>
+        <input type="number" id="copies" name="copies" value="1" min="1" max="100" step="1" />
+
+        <label>カードタイプ <span class="hint">(複数選択可。クリーチャー/プレインズウォーカーを選ぶと下の入力欄が自動的に切り替わります)</span></label>
+        <div class="type-checkboxes" id="cardTypeGroup">
+          <label><input type="checkbox" name="cardType" value="伝説" /> 伝説</label>
+          <label><input type="checkbox" name="cardType" value="同族" /> 同族</label>
+          <label><input type="checkbox" name="cardType" value="エンチャント" /> エンチャント</label>
+          <label><input type="checkbox" name="cardType" value="インスタント" /> インスタント</label>
+          <label><input type="checkbox" name="cardType" value="土地" /> 土地</label>
+          <label><input type="checkbox" name="cardType" value="プレインズウォーカー" /> プレインズウォーカー</label>
+          <label><input type="checkbox" name="cardType" value="ソーサリー" checked /> ソーサリー</label>
+          <label><input type="checkbox" name="cardType" value="アーティファクト" /> アーティファクト</label>
+          <label><input type="checkbox" name="cardType" value="クリーチャー" /> クリーチャー</label>
+        </div>
+
+        <label for="typeSubtype">それ以外のタイプ <span class="hint">(任意。例: 人間・ウィザード)</span></label>
+        <input type="text" id="typeSubtype" name="typeSubtype" value="" />
+
+        <div id="ptFields" class="pt-fields">
+          <div class="pt-field">
+            <label for="power">パワー</label>
+            <input type="text" id="power" name="power" value="" />
+          </div>
+          <div class="pt-field">
+            <label for="toughness">タフネス</label>
+            <input type="text" id="toughness" name="toughness" value="" />
+          </div>
+        </div>
+
+        <div id="loyaltyField" class="stat-field-block">
+          <div class="pt-fields">
+            <div class="pt-field">
+              <label for="loyalty">忠誠度</label>
+              <input type="text" id="loyalty" name="loyalty" value="" />
+            </div>
+          </div>
+        </div>
+
+        <label for="rulesText">ルールテキスト <span class="hint">({T}=タップ, {Q}=アンタップ, {W}{U}{B}{R}{G}=色マナ, {C}=無色, {S}=氷雪,
+            {E}=エネルギー, {W/U}=混成, {W/P}=ファイレクシア, {+X:}=忠誠度能力)</span></label>
+        <textarea id="rulesText" name="rulesText" rows="5">あなたのライブラリーの一番上にあるカード4枚を公開する。その中からパーマネント・カード1枚をあなたの手札に加えてもよい。
+残りをあなたの墓地に置く。「このクリーチャーを生け贄に捧げる:{C}を加える。」を持つ無色の0/1のエルドラージ・落とし子・クリーチャー・トークン1体を生成する。</textarea>
+
+        <label for="flavorText">フレイバーテキスト <span class="hint">(任意)</span></label>
+        <textarea id="flavorText" name="flavorText" rows="1"></textarea>
+
+        <label for="artImage">イラスト画像</label>
+        <input type="file" id="artImage" name="artImage" accept="image/*" />
+        <p class="art-status">
+          <span id="artImageStatus">画像: 未設定</span>
+          <button type="button" id="clearArtBtn" class="link-btn">削除</button>
+        </p>
+      </form>
+    </section>
+  </main>
+
+  <script src="js/vendor/jspdf.umd.min.js"></script>
+  <script>
+    // 自作jsは編集頻度が高いため、ブラウザキャッシュによる「更新したのに反映されない」
+    // 事故を避けるべく、読み込みのたびに毎回キャッシュを無効化する
+    (function () {
+      var cacheBuster = Date.now();
+      ["js/manaUtils.js", "js/cardRenderer.js", "js/csvUtils.js", "js/pdfUtils.js", "js/app.js"].forEach(function (src) {
+        document.write('<script src="' + src + '?v=' + cacheBuster + '"><' + "/script>");
+      });
+    })();
+  </script>
+</body>
+
+</html>
