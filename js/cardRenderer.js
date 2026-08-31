@@ -188,6 +188,8 @@ window.CardMaker = window.CardMaker || {};
   }
 
   var ASCII_WORD_CHAR = /[A-Za-z0-9']/;
+  // 行頭に置かない句読点。幅がわずかに超えても前の行に残す。
+  var NO_LINE_START_PUNCTUATION = /^[。、）］｝〉》」』】〕〙〗”’!?！？]/;
 
   /**
    * 段落を折り返し可能な最小単位(チャンク)の配列に分解する。
@@ -275,6 +277,10 @@ window.CardMaker = window.CardMaker || {};
     return width;
   }
 
+  function mustStayWithPreviousLine(atoms) {
+    return atoms.length === 1 && atoms[0].type === "text" && NO_LINE_START_PUNCTUATION.test(atoms[0].value);
+  }
+
   /**
    * テキストを段落(\n)・単語単位で折り返し、行の配列(各行はテキスト/シンボルの
    * アトム配列)を返す。ctx.fontはこの関数が設定する。
@@ -296,7 +302,7 @@ window.CardMaker = window.CardMaker || {};
 
       chunks.forEach(function (chunkAtoms) {
         var chunkWidth = measureAtomsWidth(ctx, chunkAtoms, fontSize);
-        if (currentAtoms.length && currentWidth + chunkWidth > maxWidth) {
+        if (currentAtoms.length && currentWidth + chunkWidth > maxWidth && !mustStayWithPreviousLine(chunkAtoms)) {
           lines.push(currentAtoms);
           currentAtoms = chunkAtoms.slice();
           currentWidth = chunkWidth;
