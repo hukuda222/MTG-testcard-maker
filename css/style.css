@@ -397,3 +397,29 @@ body {
     position: static;
   }
 }
+
+.art-drop-zone {
+  margin-top: 6px;
+  padding: 14px;
+  border: 2px dashed #aaa;
+  border-radius: 6px;
+  text-align: center;
+  font-size: 0.85em;
+  color: #666;
+}
+
+.art-drop-zone.dragover {
+  border-color: #3a7bd5;
+  background: rgba(58, 123, 213, 0.08);
+}
+
+.art-url-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.art-url-row input {
+  flex: 1;
+  min-width: 0;
+}
