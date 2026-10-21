@@ -12,7 +12,7 @@ window.CardMaker = window.CardMaker || {};
     W: { fill: "#F9FAF4", stroke: "#000000", glyph: "#000000" },
     U: { fill: "#0E68AB", stroke: "#000000", glyph: "#FFFFFF" },
     B: { fill: "#1A1A1A", stroke: "#8A8A8A", glyph: "#FFFFFF" },
-    R: { fill: "#D3202A", stroke: "#000000", glyph: "#FFFFFF" },
+    R: { fill: "#E49977", stroke: "#000000", glyph: "#000000", pattern: "#E49977" },
     G: { fill: "#00733E", stroke: "#000000", glyph: "#FFFFFF" },
     C: { fill: "#CFCFCF", stroke: "#000000", glyph: "#000000" },
     S: { fill: "#EAF4FA", stroke: "#000000", glyph: "#1B5E82" },
