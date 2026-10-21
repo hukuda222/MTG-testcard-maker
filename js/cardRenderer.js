@@ -171,6 +171,67 @@ window.CardMaker = window.CardMaker || {};
     };
   }
 
+  /**
+   * 英雄譚のレイアウト。通常レイアウトをベースに、左半分を章テキストの列、
+   * 右半分を縦長のイラスト枠にし、タイプ行はカード下部に置く。
+   */
+  function computeSagaLayout(width, height) {
+    var layout = computeLayout(width, height);
+    var gap = 0.012 * height;
+    var inset = layout.inset;
+    var innerW = width - inset * 2;
+    var columnTop = layout.nameBar.y + layout.nameBar.h + gap;
+    var typeLine = { x: inset, y: 0.87 * height, w: innerW, h: 0.055 * height };
+    var columnH = typeLine.y - gap - columnTop;
+    var textW = innerW * 0.5 - gap / 2;
+
+    layout.rulesBox = { x: inset, y: columnTop, w: textW, h: columnH };
+    layout.artBox = { x: inset + textW + gap, y: columnTop, w: innerW - textW - gap, h: columnH };
+    layout.typeLine = typeLine;
+    return layout;
+  }
+
+  /**
+   * バトルのレイアウト。バトルは横向きのカードなので、横長(width > height)の
+   * 座標系で計算する。縦横の基準寸法は短辺(height)に揃える。
+   */
+  function computeBattleLayout(width, height) {
+    var outerInset = 0.025 * height;
+    var cornerRadius = 0.025 * height;
+    var inset = 0.045 * height;
+    var gap = 0.012 * width;
+
+    function region(yStart, yEnd) {
+      return { x: inset, y: yStart * height, w: width - inset * 2, h: (yEnd - yStart) * height };
+    }
+
+    var nameBar = region(0.045, 0.136);
+    var artBox = region(0.136 + gap / height, 0.56);
+    var typeLine = region(0.56 + gap / height, 0.637);
+    var rulesBox = region(0.637 + gap / height, 0.92);
+
+    var defenseBox = { w: 0.11 * width, h: 0.11 * height };
+    defenseBox.x = width - inset - defenseBox.w;
+    defenseBox.y = rulesBox.y + rulesBox.h - defenseBox.h * 0.6;
+    var maxBottom = height - outerInset - gap * 0.5;
+    if (defenseBox.y + defenseBox.h > maxBottom) {
+      defenseBox.y = maxBottom - defenseBox.h;
+    }
+
+    return {
+      outerInset: outerInset,
+      cornerRadius: cornerRadius,
+      inset: inset,
+      nameBar: nameBar,
+      artBox: artBox,
+      typeLine: typeLine,
+      rulesBox: rulesBox,
+      defenseBox: defenseBox,
+      // ルールボックスが通常カードより低いため、文字サイズは短辺基準で決める
+      rulesBaseFontSize: 0.027 * width
+    };
+  }
+
   /** 画像をcover-fitで矩形内に描画する(はみ出た部分は中央基準でクロップ) */
   function drawImageCover(ctx, img, x, y, w, h) {
     var scale = Math.max(w / img.naturalWidth, h / img.naturalHeight);
@@ -558,17 +619,57 @@ window.CardMaker = window.CardMaker || {};
     ctx.fill();
   }
 
-  /** 赤マナ: 炎 */
+  /** 赤マナ: 本家風の火の玉(下半分を占める黒い球から1本の炎が右側から上をぐるっと回って伸び、内側に背景色の渦模様) */
   function drawFlameIcon(ctx, cx, cy, r, color) {
-    ctx.beginPath();
-    ctx.moveTo(cx + r * 0.05, cy + r * 0.85);
-    ctx.bezierCurveTo(cx - r * 0.65, cy + r * 0.5, cx - r * 0.5, cy - r * 0.15, cx - r * 0.12, cy - r * 0.8);
-    ctx.bezierCurveTo(cx - r * 0.02, cy - r * 0.4, cx + r * 0.22, cy - r * 0.42, cx + r * 0.12, cy - r * 0.08);
-    ctx.bezierCurveTo(cx + r * 0.38, cy - r * 0.28, cx + r * 0.58, cy + r * 0.05, cx + r * 0.42, cy + r * 0.38);
-    ctx.bezierCurveTo(cx + r * 0.55, cy + r * 0.28, cx + r * 0.55, cy + r * 0.62, cx + r * 0.05, cy + r * 0.85);
-    ctx.closePath();
-    ctx.fillStyle = color;
-    ctx.fill();
+    var patternColor = manaUtils.MANA_SYMBOL_COLORS.R.pattern;
+    function circle(x, y, radius, fill) {
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.arc(cx + r * x, cy + r * y, r * radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // [始点, [制御点, 終点], ...] の2次ベジェで閉じた形を塗る
+    function tongue(points, fill) {
+      ctx.fillStyle = fill;
+      ctx.beginPath();
+      ctx.moveTo(cx + r * points[0][0], cy + r * points[0][1]);
+      for (var i = 1; i < points.length; i++) {
+        var c = points[i][0];
+        var e = points[i][1];
+        ctx.quadraticCurveTo(cx + r * c[0], cy + r * c[1], cx + r * e[0], cy + r * e[1]);
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    circle(-0.05, 0.38, 0.55, color);
+    // 炎の舌: 右下から円に沿って右側・上側をぐるっと回り込み、左上で先端になる。外側の縁はギザギザに揺らす
+    tongue([
+      [0.25, 0.85],
+      [[0.65, 0.78], [0.8, 0.5]],
+      [[0.78, 0.4], [0.7, 0.35]],
+      [[0.92, 0.2], [0.9, -0.05]],
+      [[0.82, -0.1], [0.74, -0.12]],
+      [[0.9, -0.35], [0.78, -0.55]],
+      [[0.68, -0.55], [0.6, -0.52]],
+      [[0.55, -0.8], [0.25, -0.88]],
+      [[0.2, -0.78], [0.12, -0.76]],
+      [[-0.1, -0.95], [-0.45, -0.82]],
+      [[-0.65, -0.72], [-0.72, -0.45]],
+      [[-0.4, -0.65], [0.0, -0.6]],
+      [[0.5, -0.5], [0.45, 0.0]],
+      [[0.4, 0.2], [0.2, 0.0]]
+    ], color);
+    // 炎の途切れ: 右上で舌を細く切り離す
+    tongue([[0.62, -0.62], [[0.5, -0.5], [0.35, -0.48]], [[0.5, -0.58], [0.58, -0.7]]], patternColor);
+    // 先端付近に飛ぶ小さな火の粉
+    tongue([[-0.6, -0.25], [[-0.68, -0.4], [-0.82, -0.5]], [[-0.75, -0.3], [-0.6, -0.25]]], color);
+
+    // 内側の渦: 背景色の円を黒い円でずらして欠いて三日月形にし、中心に小さな渦を重ねる
+    circle(0.06, 0.3, 0.36, patternColor);
+    circle(-0.05, 0.41, 0.3, color);
+    circle(0.06, 0.19, 0.11, patternColor);
+    circle(0.12, 0.26, 0.07, color);
   }
 
   /** 緑マナ: 木 */
@@ -1009,11 +1110,11 @@ window.CardMaker = window.CardMaker || {};
     return textY;
   }
 
-  function drawRulesBox(ctx, rect, card, lineWidth) {
+  function drawRulesBox(ctx, rect, card, lineWidth, baseFontSizeOverride) {
     drawBoxFrame(ctx, rect, lineWidth, PAPER_TINT);
 
     var fontFamily = "'Yu Gothic', 'Hiragino Kaku Gothic ProN', Meiryo, Arial, sans-serif";
-    var baseFontSize = rect.h * 0.065;
+    var baseFontSize = baseFontSizeOverride || rect.h * 0.065;
     var fit = fitTextBlock(ctx, card, rect, baseFontSize, fontFamily);
 
     var textX = rect.x + fit.paddingX;
@@ -1061,14 +1162,213 @@ window.CardMaker = window.CardMaker || {};
     ctx.fillText(label, rect.x + rect.w / 2, rect.y + rect.h * 0.55);
   }
 
+  // 英雄譚の章番号(ローマ数字)。全角のローマ数字も受け付ける。
+  var ROMAN_TOKEN = "(?:VIII|VII|VI|IV|IX|V|III|II|I|X|Ⅰ|Ⅱ|Ⅲ|Ⅳ|Ⅴ|Ⅵ|Ⅶ|Ⅷ|Ⅸ|Ⅹ)";
+  // 段落先頭の「I:」「II, III —」のような章の表記
+  var SAGA_CHAPTER_PATTERN = new RegExp(
+    "^\\s*(" + ROMAN_TOKEN + "(?:\\s*[,、，・]\\s*" + ROMAN_TOKEN + ")*)\\s*[:：—―\\-]\\s*"
+  );
+  var ROMAN_NUMERALS = ["", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X"];
+  var FULLWIDTH_ROMAN = "ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ";
+
+  function normalizeRoman(token) {
+    var fw = FULLWIDTH_ROMAN.indexOf(token);
+    return fw !== -1 ? ROMAN_NUMERALS[fw + 1] : token;
+  }
+
+  /**
+   * 英雄譚のルールテキストを章ごとに分解する。章表記で始まる段落が新しい章になり、
+   * 章表記のない段落は直前の章に続ける(最初の章より前の段落は前文として扱う)。
+   */
+  function parseSagaText(text) {
+    var preamble = [];
+    var chapters = [];
+    String(text || "").split("\n").forEach(function (paragraph) {
+      var match = paragraph.match(SAGA_CHAPTER_PATTERN);
+      if (match) {
+        var numerals = match[1].split(/\s*[,、，・]\s*/).map(normalizeRoman);
+        chapters.push({ numerals: numerals, lines: [paragraph.slice(match[0].length)] });
+      } else if (chapters.length) {
+        chapters[chapters.length - 1].lines.push(paragraph);
+      } else if (paragraph.trim() !== "") {
+        preamble.push(paragraph);
+      }
+    });
+    chapters.forEach(function (chapter) {
+      chapter.text = chapter.lines.join("\n").replace(/\n+$/, "");
+    });
+    return { preamble: preamble.join("\n"), chapters: chapters };
+  }
+
+  /** 英雄譚の章番号バッジのパス(上下が尖った縦長の六角形) */
+  function chapterBadgePath(ctx, rect) {
+    var x = rect.x, y = rect.y, w = rect.w, h = rect.h;
+    var cut = h * 0.22;
+    ctx.beginPath();
+    ctx.moveTo(x + w / 2, y);
+    ctx.lineTo(x + w, y + cut);
+    ctx.lineTo(x + w, y + h - cut);
+    ctx.lineTo(x + w / 2, y + h);
+    ctx.lineTo(x, y + h - cut);
+    ctx.lineTo(x, y + cut);
+    ctx.closePath();
+  }
+
+  function drawChapterBadge(ctx, rect, label) {
+    chapterBadgePath(ctx, rect);
+    ctx.fillStyle = INK;
+    ctx.fill();
+
+    var fontSize = rect.h * 0.5;
+    var fontFamily = "'Times New Roman', Times, serif";
+    ctx.font = "bold " + Math.round(fontSize) + "px " + fontFamily;
+    var maxTextW = rect.w * 0.8;
+    var textW = ctx.measureText(label).width;
+    if (textW > maxTextW) {
+      ctx.font = "bold " + Math.round(fontSize * (maxTextW / textW)) + "px " + fontFamily;
+    }
+    ctx.fillStyle = PAPER;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(label, rect.x + rect.w / 2, rect.y + rect.h / 2);
+  }
+
+  /**
+   * 英雄譚のテキスト列を描画する。先頭に注釈文(最終章の番号から自動生成)、
+   * その下に章ごとの区画を罫線で区切って並べ、左端に章番号バッジを置く。
+   * 余った高さは各章に均等に分配する。
+   */
+  function drawSagaRulesBox(ctx, rect, card, lineWidth) {
+    drawBoxFrame(ctx, rect, lineWidth, PAPER_TINT);
+
+    var fontFamily = "'Yu Gothic', 'Hiragino Kaku Gothic ProN', Meiryo, Arial, sans-serif";
+    var saga = parseSagaText(card.rulesText);
+    var lastChapter = 0;
+    saga.chapters.forEach(function (chapter) {
+      chapter.numerals.forEach(function (numeral) {
+        lastChapter = Math.max(lastChapter, ROMAN_NUMERALS.indexOf(numeral));
+      });
+    });
+    var reminder =
+      "(この英雄譚が戦場に出た際とあなたのドロー・ステップの後に、伝承カウンター1個を加える。" +
+      ROMAN_NUMERALS[lastChapter || 3] + "の後に、生け贄に捧げる。)";
+    var headerText = reminder + (saga.preamble ? "\n" + saga.preamble : "");
+
+    var paddingX = rect.w * 0.04;
+    var paddingY = rect.h * 0.012;
+    var badgeColumnW = rect.w * 0.18;
+    var badgeW = badgeColumnW * 0.78;
+    var badgeH = badgeW * 1.15;
+    var badgeGap = badgeH * 0.25;
+    var textX = rect.x + badgeColumnW + paddingX * 0.5;
+    var chapterTextW = rect.x + rect.w - paddingX - textX;
+
+    var fontSize = rect.w * 0.072;
+    var minFontSize = fontSize * 0.45;
+    var lineHeight, headerLines, headerH, groups, total;
+
+    while (true) {
+      lineHeight = fontSize * 1.18;
+      headerLines = wrapRichText(ctx, headerText, rect.w - paddingX * 2, fontSize, fontFamily, false, false);
+      headerH = headerLines.length * lineHeight + paddingY * 2;
+      total = headerH;
+      groups = saga.chapters.map(function (chapter) {
+        var lines = wrapRichText(ctx, chapter.text, chapterTextW, fontSize, fontFamily, false, true);
+        var n = chapter.numerals.length;
+        var badgeStackH = n * badgeH + (n - 1) * badgeGap;
+        var minH = Math.max(lines.length * lineHeight, badgeStackH) + paddingY * 4;
+        total += minH;
+        return { numerals: chapter.numerals, lines: lines, minH: minH, badgeStackH: badgeStackH };
+      });
+      if (total <= rect.h || fontSize <= minFontSize) break;
+      fontSize -= 1;
+    }
+
+    drawAtomLines(ctx, toPlainLines(headerLines), rect.x + paddingX, rect.y + paddingY, lineHeight, fontSize, fontFamily, false, false);
+
+    var extra = groups.length ? Math.max(0, rect.h - total) / groups.length : 0;
+    var y = rect.y + headerH;
+    groups.forEach(function (group) {
+      var groupH = group.minH + extra;
+
+      ctx.beginPath();
+      ctx.moveTo(rect.x, y);
+      ctx.lineTo(rect.x + rect.w, y);
+      ctx.lineWidth = lineWidth;
+      ctx.strokeStyle = INK;
+      ctx.stroke();
+
+      var textStartY = y + (groupH - group.lines.length * lineHeight) / 2;
+      drawAtomLines(ctx, toPlainLines(group.lines), textX, textStartY, lineHeight, fontSize, fontFamily, false, true);
+
+      var badgeX = rect.x + (badgeColumnW - badgeW) / 2;
+      var badgeY = y + (groupH - group.badgeStackH) / 2;
+      if (group.numerals.length > 1) {
+        // 複数章をまとめた場合はバッジ同士を縦線でつなぐ
+        ctx.beginPath();
+        ctx.moveTo(badgeX + badgeW / 2, badgeY + badgeH / 2);
+        ctx.lineTo(badgeX + badgeW / 2, badgeY + group.badgeStackH - badgeH / 2);
+        ctx.lineWidth = lineWidth * 1.5;
+        ctx.strokeStyle = INK;
+        ctx.stroke();
+      }
+      group.numerals.forEach(function (numeral, idx) {
+        drawChapterBadge(ctx, { x: badgeX, y: badgeY + idx * (badgeH + badgeGap), w: badgeW, h: badgeH }, numeral);
+      });
+
+      y += groupH;
+    });
+
+    return fontSize;
+  }
+
+  /** バトルの守備値バッジのパス(左右が尖った横長の六角形) */
+  function defenseBadgePath(ctx, rect) {
+    var x = rect.x, y = rect.y, w = rect.w, h = rect.h;
+    var cut = w * 0.22;
+    ctx.beginPath();
+    ctx.moveTo(x + cut, y);
+    ctx.lineTo(x + w - cut, y);
+    ctx.lineTo(x + w, y + h / 2);
+    ctx.lineTo(x + w - cut, y + h);
+    ctx.lineTo(x + cut, y + h);
+    ctx.lineTo(x, y + h / 2);
+    ctx.closePath();
+  }
+
+  function drawDefenseBox(ctx, rect, card, lineWidth) {
+    drawCurvedBadge(ctx, defenseBadgePath, rect, lineWidth * 1.3);
+
+    ctx.fillStyle = INK;
+    ctx.font = "bold " + Math.round(rect.h * 0.62) + "px " + NUMBER_FONT_FAMILY;
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(card.defense || "0", rect.x + rect.w / 2, rect.y + rect.h / 2);
+  }
+
   /** カード本体をctxに描画する。width/heightに対して比率で描画する。 */
   function renderCard(ctx, width, height, card) {
-    var layout = computeLayout(width, height);
     var lineWidth = Math.max(1, width * 0.004);
     var outerLineWidth = Math.max(1.5, width * 0.006);
 
     ctx.clearRect(0, 0, width, height);
     ctx.save();
+
+    // バトルは横向きのカードなので、横長の座標系で描いてから反時計回りに
+    // 90度回転させて縦長のキャンバスに収める(カードの上辺が左側に来る)
+    if (card.isBattle) {
+      ctx.translate(0, height);
+      ctx.rotate(-Math.PI / 2);
+      var portraitWidth = width;
+      width = height;
+      height = portraitWidth;
+    }
+    var layout = card.isBattle
+      ? computeBattleLayout(width, height)
+      : card.isSaga
+        ? computeSagaLayout(width, height)
+        : computeLayout(width, height);
+
     // クリップ半径は「枠線の半径+外側余白」と揃える(食い違うと枠線の角が
     // クリップで斜めに切り取られ、右上などに余分な線が見えてしまう)
     roundRectPath(ctx, 0, 0, width, height, layout.cornerRadius + layout.outerInset);
@@ -1093,10 +1393,14 @@ window.CardMaker = window.CardMaker || {};
 
     drawNameBar(ctx, layout.nameBar, card, lineWidth);
     drawArtBox(ctx, layout.artBox, card, lineWidth);
-    var rulesFontSize = drawRulesBox(ctx, layout.rulesBox, card, lineWidth);
+    var rulesFontSize = card.isSaga && !card.isBattle
+      ? drawSagaRulesBox(ctx, layout.rulesBox, card, lineWidth)
+      : drawRulesBox(ctx, layout.rulesBox, card, lineWidth, layout.rulesBaseFontSize);
     drawTypeLine(ctx, layout.typeLine, card, lineWidth, rulesFontSize);
 
-    if (card.isCreature) {
+    if (card.isBattle) {
+      drawDefenseBox(ctx, layout.defenseBox, card, lineWidth);
+    } else if (card.isCreature) {
       drawPTBox(ctx, layout.ptBox, card, lineWidth);
     } else if (card.isPlaneswalker) {
       drawLoyaltyBox(ctx, layout.loyaltyBox, card, lineWidth);
@@ -1108,6 +1412,7 @@ window.CardMaker = window.CardMaker || {};
   window.CardMaker.cardRenderer = {
     roundRectPath: roundRectPath,
     computeLayout: computeLayout,
+    parseSagaText: parseSagaText,
     drawImageCover: drawImageCover,
     wrapRichText: wrapRichText,
     fitTextBlock: fitTextBlock,

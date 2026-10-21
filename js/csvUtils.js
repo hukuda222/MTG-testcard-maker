@@ -13,7 +13,9 @@ window.CardMaker = window.CardMaker || {};
     "ソーサリー",
     "土地",
     "プレインズウォーカー",
-    "クリーチャー"
+    "クリーチャー",
+    "英雄譚",
+    "バトル"
   ];
 
   var HEADER_MAP = {};
@@ -29,6 +31,7 @@ window.CardMaker = window.CardMaker || {};
   addAliases("power", ["power", "パワー"]);
   addAliases("toughness", ["toughness", "タフネス"]);
   addAliases("loyalty", ["loyalty", "忠誠度"]);
+  addAliases("defense", ["defense", "守備値"]);
   addAliases("rulesText", ["rulestext", "rules", "ルールテキスト"]);
   addAliases("flavorText", ["flavortext", "flavor", "フレイバーテキスト", "フレイバー"]);
   addAliases("copies", ["copies", "count", "枚数", "印刷枚数"]);
@@ -134,6 +137,7 @@ window.CardMaker = window.CardMaker || {};
       power: record.power || "",
       toughness: record.toughness || "",
       loyalty: record.loyalty || "",
+      defense: record.defense || "",
       copies: parseCopiesCell(record.copies),
       artImage: null,
       artObjectUrl: null,
@@ -179,7 +183,7 @@ window.CardMaker = window.CardMaker || {};
 
   /** カードのデータモデル配列(cardsFromCsvTextと同形式)からCSVテキストを生成する */
   function cardsToCsvText(cards) {
-    var header = ["名前", "マナコスト", "カードタイプ", "その他のタイプ", "パワー", "タフネス", "忠誠度", "ルールテキスト", "フレイバーテキスト", "枚数"];
+    var header = ["名前", "マナコスト", "カードタイプ", "その他のタイプ", "パワー", "タフネス", "忠誠度", "守備値", "ルールテキスト", "フレイバーテキスト", "枚数"];
     var rows = [header].concat(
       (cards || []).map(function (card) {
         return [
@@ -190,6 +194,7 @@ window.CardMaker = window.CardMaker || {};
           card.power || "",
           card.toughness || "",
           card.loyalty || "",
+          card.defense || "",
           card.rulesText || "",
           card.flavorText || "",
           card.copies || 1
@@ -201,13 +206,14 @@ window.CardMaker = window.CardMaker || {};
 
   /** 手元で試せるサンプルCSVを生成する */
   function generateSampleCsvText() {
-    var header = ["名前", "マナコスト", "カードタイプ", "その他のタイプ", "パワー", "タフネス", "忠誠度", "ルールテキスト", "フレイバーテキスト", "枚数"];
+    var header = ["名前", "マナコスト", "カードタイプ", "その他のタイプ", "パワー", "タフネス", "忠誠度", "守備値", "ルールテキスト", "フレイバーテキスト", "枚数"];
     var rows = [
       header,
       [
         "邪悪鳴らし",
         "1G",
         "ソーサリー",
+        "",
         "",
         "",
         "",
@@ -224,6 +230,7 @@ window.CardMaker = window.CardMaker || {};
         "9",
         "9",
         "",
+        "",
         "飛行、絆魂\n\n護法—土地でないパーマネント3つを生け贄に捧げる。\n\nあなたがコントロールしていなかったカードがいずこかから対戦相手の墓地に置かれるなら、代わりにそれを追放する。\nあなたのターンの間、恐怖を喰うもの、ヴァルガヴォスにより追放されているカードをプレイしてもよい。あなたがこれにより呪文を唱えるなら、マナ・コストを支払うのではなく、それのマナ総量に等しい点数のライフを支払う。",
         "",
         "1"
@@ -236,7 +243,36 @@ window.CardMaker = window.CardMaker || {};
         "",
         "",
         "3",
+        "",
         "+1: 各プレイヤーはそれぞれカード1枚を捨てる。\n\n-2: プレイヤー1人を対象とする。そのプレイヤーはクリーチャー1体を生け贄に捧げる。\n\n-6: プレイヤー1人を対象とし、そのプレイヤーがコントロールしているパーマネントすべてを2つの束に分ける。そのプレイヤーは束1つを選び、その束にあるすべてのパーマネントを生け贄に捧げる。\n\n",
+        "",
+        "1"
+      ],
+      [
+        "物語の結末",
+        "2U",
+        "英雄譚",
+        "",
+        "",
+        "",
+        "",
+        "",
+        "I: カード2枚を引く。
+II, III: 対戦相手がコントロールしているクリーチャー1体を対象とする。それをオーナーの手札に戻す。
+IV: あなたの墓地にあるインスタントかソーサリーである呪文1つを対象とする。それをコピーする。",
+        "",
+        "1"
+      ],
+      [
+        "テスト次元への侵攻",
+        "4R",
+        "バトル",
+        "包囲戦",
+        "",
+        "",
+        "",
+        "4",
+        "テスト次元への侵攻が戦場に出たとき、クリーチャー1体を対象とする。テスト次元への侵攻はそれに3点のダメージを与える。",
         "",
         "1"
       ]

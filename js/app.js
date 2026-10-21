@@ -18,6 +18,7 @@
   var ctx = canvas.getContext("2d");
   var ptFields = document.getElementById("ptFields");
   var loyaltyField = document.getElementById("loyaltyField");
+  var defenseField = document.getElementById("defenseField");
   var downloadBtn = document.getElementById("downloadBtn");
   var downloadPdfBtn = document.getElementById("downloadPdfBtn");
   var artImageInput = document.getElementById("artImage");
@@ -35,7 +36,7 @@
 
   var debounceTimer = null;
 
-  var MAX_COPIES = 100;
+  var MAX_TOTAL_CARDS = 99;
 
   /** 新規カードの初期値 */
   function defaultCardRaw() {
@@ -50,6 +51,7 @@
       power: "",
       toughness: "",
       loyalty: "",
+      defense: "",
       copies: 1,
       artImage: null,
       artObjectUrl: null,
@@ -57,15 +59,25 @@
     };
   }
 
-  /** 印刷枚数の入力値を1〜MAX_COPIESの整数に丸める */
+  /** 印刷枚数の入力値を1〜MAX_TOTAL_CARDSの整数に丸める */
   function sanitizeCopies(value) {
     var n = parseInt(value, 10);
     if (!isFinite(n) || n < 1) return 1;
-    return Math.min(n, MAX_COPIES);
+    return n;
   }
 
   var cards = [defaultCardRaw()];
   var currentIndex = 0;
+
+  function totalCardCount(excludeIndex) {
+    return cards.reduce(function (total, card, index) {
+      return total + (index === excludeIndex ? 0 : sanitizeCopies(card.copies));
+    }, 0);
+  }
+
+  function maxCopiesForCurrentCard() {
+    return Math.max(1, MAX_TOTAL_CARDS - totalCardCount(currentIndex));
+  }
 
   /** フォームの現在値をcards[currentIndex]に書き戻す(画像関連は別管理) */
   function syncFormIntoCurrentCard() {
@@ -80,17 +92,23 @@
     card.power = formData.get("power") || "";
     card.toughness = formData.get("toughness") || "";
     card.loyalty = formData.get("loyalty") || "";
-    card.copies = sanitizeCopies(formData.get("copies"));
+    card.defense = formData.get("defense") || "";
+    card.copies = Math.min(sanitizeCopies(form.elements.copies.value), maxCopiesForCurrentCard());
+    form.elements.copies.value = card.copies;
   }
 
   /** cards配列上のデータモデルから、レンダラーが要求する形へ変換する */
   function computeDerivedCard(raw) {
     var isLegendary = raw.cardTypes.indexOf("伝説") !== -1;
+    // 英雄譚はエンチャントのサブタイプなので、タイプ行では「エンチャント — 英雄譚」として表示する
+    var isSaga = raw.cardTypes.indexOf("英雄譚") !== -1;
     var otherTypes = raw.cardTypes.filter(function (t) {
-      return t !== "伝説";
+      return t !== "伝説" && t !== "英雄譚";
     });
+    if (isSaga && otherTypes.indexOf("エンチャント") === -1) otherTypes.unshift("エンチャント");
+    var subtypes = (isSaga ? ["英雄譚"] : []).concat(raw.typeSubtype ? [raw.typeSubtype] : []).join("・");
     var legendaryPrefix = isLegendary ? (otherTypes.length ? "伝説の" : "伝説") : "";
-    var typeLine = legendaryPrefix + otherTypes.join("・") + (raw.typeSubtype ? " — " + raw.typeSubtype : "");
+    var typeLine = legendaryPrefix + otherTypes.join("・") + (subtypes ? " — " + subtypes : "");
     return {
       name: raw.name,
       manaCostString: raw.manaCostString,
@@ -98,11 +116,14 @@
       typeLine: typeLine,
       isCreature: raw.cardTypes.indexOf("クリーチャー") !== -1,
       isPlaneswalker: raw.cardTypes.indexOf("プレインズウォーカー") !== -1,
+      isSaga: isSaga,
+      isBattle: raw.cardTypes.indexOf("バトル") !== -1,
       rulesText: raw.rulesText,
       flavorText: raw.flavorText,
       power: raw.power,
       toughness: raw.toughness,
       loyalty: raw.loyalty,
+      defense: raw.defense,
       artImage: raw.artImage
     };
   }
@@ -118,6 +139,7 @@
     form.elements["power"].value = card.power;
     form.elements["toughness"].value = card.toughness;
     form.elements["loyalty"].value = card.loyalty;
+    form.elements["defense"].value = card.defense || "";
     form.elements["copies"].value = card.copies;
 
     var typeCheckboxes = form.querySelectorAll('input[name="cardType"]');
@@ -138,6 +160,7 @@
   function updateStatFieldsVisibility(card) {
     ptFields.style.display = card.isCreature ? "flex" : "none";
     loyaltyField.style.display = card.isPlaneswalker ? "block" : "none";
+    defenseField.style.display = card.isBattle ? "block" : "none";
   }
 
   function renderPreview() {
@@ -235,6 +258,7 @@
 
   function addCard() {
     syncFormIntoCurrentCard();
+    if (totalCardCount() >= MAX_TOTAL_CARDS) return;
     cards.push(defaultCardRaw());
     currentIndex = cards.length - 1;
     populateFormFromCurrentCard();
@@ -288,11 +312,14 @@
       typeLine: "",
       isCreature: false,
       isPlaneswalker: false,
+      isSaga: false,
+      isBattle: false,
       rulesText: "",
       flavorText: "",
       power: "",
       toughness: "",
       loyalty: "",
+      defense: "",
       artImage: null
     };
   }
@@ -388,7 +415,7 @@
 
   // ---- CSVインポート ----
 
-  var MAX_CSV_IMPORT_CARDS = 100;
+  var MAX_CSV_IMPORT_CARDS = Infinity;
 
   function handleCsvImport(event) {
     var file = event.target.files && event.target.files[0];
@@ -422,8 +449,17 @@
       }
 
       syncFormIntoCurrentCard();
+      var remaining = MAX_TOTAL_CARDS - totalCardCount();
+      var accepted = [];
+      imported.forEach(function (card) {
+        if (remaining <= 0) return;
+        card.copies = Math.min(sanitizeCopies(card.copies), remaining);
+        accepted.push(card);
+        remaining -= card.copies;
+      });
+      if (accepted.length === 0) return;
       var firstNewIndex = cards.length;
-      cards = cards.concat(imported);
+      cards = cards.concat(accepted);
       currentIndex = firstNewIndex;
       populateFormFromCurrentCard();
       renderPreview();
