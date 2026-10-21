@@ -118,6 +118,13 @@
 
         <label for="artImage">イラスト画像</label>
         <input type="file" id="artImage" name="artImage" accept="image/*" />
+        <div id="artDropZone" class="art-drop-zone" tabindex="0">
+          ここに画像をドラッグ&amp;ドロップ、またはコピーした画像を Ctrl+V で貼り付け
+        </div>
+        <div class="art-url-row">
+          <input type="url" id="artUrl" placeholder="https://... 画像URL（blob: URLは不可。コピー&amp;貼り付けを使用）" />
+          <button type="button" id="artUrlBtn">読込</button>
+        </div>
         <p class="art-status">
           <span id="artImageStatus">画像: 未設定</span>
           <button type="button" id="clearArtBtn" class="link-btn">削除</button>

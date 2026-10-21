@@ -23,6 +23,9 @@
   var downloadPdfBtn = document.getElementById("downloadPdfBtn");
   var artImageInput = document.getElementById("artImage");
   var artImageStatus = document.getElementById("artImageStatus");
+  var artDropZone = document.getElementById("artDropZone");
+  var artUrlInput = document.getElementById("artUrl");
+  var artUrlBtn = document.getElementById("artUrlBtn");
   var clearArtBtn = document.getElementById("clearArtBtn");
 
   var csvInput = document.getElementById("csvInput");
@@ -154,6 +157,9 @@
   function updateArtImageStatus() {
     var card = cards[currentIndex];
     artImageStatus.textContent = card.artFileName ? "画像: " + card.artFileName : "画像: 未設定";
+    if (card.artTainted) {
+      artImageStatus.textContent += "（プレビューのみ。このサイトの画像はPNG/PDF出力できません。保存してファイル指定してください）";
+    }
     clearArtBtn.style.display = card.artImage ? "inline" : "none";
   }
 
@@ -280,6 +286,13 @@
     var exportCtx = exportCanvas.getContext("2d");
     cardRenderer.renderCard(exportCtx, EXPORT_WIDTH, EXPORT_HEIGHT, derived);
 
+    if (cards[currentIndex].artTainted) {
+      alert(TAINTED_EXPORT_MESSAGE);
+      downloadBtn.disabled = false;
+      downloadBtn.textContent = "このカードをPNGでダウンロード";
+      return;
+    }
+
     exportCanvas.toBlob(function (blob) {
       var url = URL.createObjectURL(blob);
       var a = document.createElement("a");
@@ -324,8 +337,16 @@
     };
   }
 
+  var TAINTED_EXPORT_MESSAGE =
+    "外部サイトから直接読み込んだ画像は、ブラウザの制限でPNG/PDFに出力できません。\n画像を右クリック→「名前を付けて画像を保存」し、ファイルとして指定し直してください。";
+
   async function handleDownloadPdf() {
     syncFormIntoCurrentCard();
+
+    if (cards.some(function (c) { return c.artTainted; })) {
+      alert(TAINTED_EXPORT_MESSAGE);
+      return;
+    }
 
     downloadPdfBtn.disabled = true;
     var exportCanvas = document.createElement("canvas");
@@ -386,20 +407,113 @@
   function handleArtImageChange(event) {
     var file = event.target.files && event.target.files[0];
     if (!file) return;
+    loadArtFromBlob(file, file.name);
+  }
 
+  function loadArtFromBlob(blob, name) {
     var card = cards[currentIndex];
-    if (card.artObjectUrl) URL.revokeObjectURL(card.artObjectUrl);
-
-    var objectUrl = URL.createObjectURL(file);
+    var objectUrl = URL.createObjectURL(blob);
     var img = new Image();
     img.onload = function () {
+      if (card.artObjectUrl) URL.revokeObjectURL(card.artObjectUrl);
       card.artImage = img;
       card.artObjectUrl = objectUrl;
-      card.artFileName = file.name;
+      card.artFileName = name || "貼り付け画像";
+      card.artTainted = false;
       updateArtImageStatus();
       renderPreview();
     };
+    img.onerror = function () {
+      URL.revokeObjectURL(objectUrl);
+      alert("画像として読み込めませんでした。");
+    };
     img.src = objectUrl;
+  }
+
+  // Web上の画像をURLから取得する（CORSを許可しているサーバーのみ）。
+  // blob: URLは発行元のページ内でしか有効でないため、他サイトのものは読めない。
+  function loadArtFromUrl(url) {
+    url = (url || "").trim();
+    if (!url) return;
+    if (/^blob:/i.test(url) && url.indexOf("blob:" + location.origin) !== 0) {
+      alert("他サイトの blob: URL は読み込めません。\n元のページで画像を右クリック →「画像をコピー」し、このページで Ctrl+V で貼り付けるか、画像をドラッグ&ドロップしてください。");
+      return;
+    }
+    fetch(url)
+      .then(function (res) {
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        return res.blob();
+      })
+      .then(function (blob) {
+        var name = decodeURIComponent(url.split(/[?#]/)[0].split("/").pop() || "") || "Web画像";
+        loadArtFromBlob(blob, name);
+      })
+      .catch(function () {
+        loadArtDirect(url);
+      });
+  }
+
+  // CORS非対応サーバーの画像は<img>で直接表示だけする。canvasが汚染されるため出力は不可。
+  function loadArtDirect(url) {
+    var card = cards[currentIndex];
+    var img = new Image();
+    img.onload = function () {
+      if (card.artObjectUrl) URL.revokeObjectURL(card.artObjectUrl);
+      card.artImage = img;
+      card.artObjectUrl = null;
+      card.artFileName = decodeURIComponent(url.split(/[?#]/)[0].split("/").pop() || "") || "Web画像";
+      card.artTainted = true;
+      updateArtImageStatus();
+      renderPreview();
+    };
+    img.onerror = function () {
+      alert("画像を取得できませんでした。\n画像をコピーして Ctrl+V で貼り付けるか、保存してファイル指定してください。");
+    };
+    img.src = url;
+  }
+
+  function findImageFile(dataTransfer) {
+    if (!dataTransfer) return null;
+    var files = dataTransfer.files || [];
+    for (var i = 0; i < files.length; i++) {
+      if (/^image\//.test(files[i].type)) return files[i];
+    }
+    var items = dataTransfer.items || [];
+    for (var j = 0; j < items.length; j++) {
+      if (items[j].kind === "file" && /^image\//.test(items[j].type)) return items[j].getAsFile();
+    }
+    return null;
+  }
+
+  function handleArtPaste(event) {
+    var target = event.target;
+    var isTextField = target && (target.tagName === "TEXTAREA" || (target.tagName === "INPUT" && target.type !== "file"));
+    var file = findImageFile(event.clipboardData);
+    if (file) {
+      event.preventDefault();
+      loadArtFromBlob(file, file.name && file.name !== "image.png" ? file.name : "貼り付け画像");
+      return;
+    }
+    if (target === artUrlInput) return;
+    if (!isTextField) {
+      var text = event.clipboardData && event.clipboardData.getData("text/plain");
+      if (text && /^(https?|blob):/i.test(text.trim())) {
+        event.preventDefault();
+        loadArtFromUrl(text);
+      }
+    }
+  }
+
+  function handleArtDrop(event) {
+    event.preventDefault();
+    artDropZone.classList.remove("dragover");
+    var file = findImageFile(event.dataTransfer);
+    if (file) {
+      loadArtFromBlob(file, file.name);
+      return;
+    }
+    var url = event.dataTransfer.getData("text/uri-list") || event.dataTransfer.getData("text/plain");
+    if (url) loadArtFromUrl(url.split("\n")[0]);
   }
 
   function handleClearArt() {
@@ -408,6 +522,7 @@
     card.artImage = null;
     card.artObjectUrl = null;
     card.artFileName = "";
+    card.artTainted = false;
     artImageInput.value = "";
     updateArtImageStatus();
     renderPreview();
@@ -502,6 +617,24 @@
 
   form.addEventListener("input", scheduleRender);
   artImageInput.addEventListener("change", handleArtImageChange);
+  document.addEventListener("paste", handleArtPaste);
+  artDropZone.addEventListener("dragover", function (event) {
+    event.preventDefault();
+    artDropZone.classList.add("dragover");
+  });
+  artDropZone.addEventListener("dragleave", function () {
+    artDropZone.classList.remove("dragover");
+  });
+  artDropZone.addEventListener("drop", handleArtDrop);
+  artUrlBtn.addEventListener("click", function () {
+    loadArtFromUrl(artUrlInput.value);
+  });
+  artUrlInput.addEventListener("keydown", function (event) {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      loadArtFromUrl(artUrlInput.value);
+    }
+  });
   clearArtBtn.addEventListener("click", handleClearArt);
   downloadBtn.addEventListener("click", handleDownload);
   downloadPdfBtn.addEventListener("click", handleDownloadPdf);
