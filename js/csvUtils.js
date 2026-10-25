@@ -219,7 +219,8 @@ window.CardMaker = window.CardMaker || {};
           card.defense || "",
           card.rulesText || "",
           card.flavorText || "",
-          card.copies || 1
+          card.copies || 1,
+          artToCsvField(card)
         ];
       })
     );
