@@ -54,54 +54,58 @@ window.CardMaker = window.CardMaker || {};
     var input = String(text || "");
     if (input.charCodeAt(0) === 0xfeff) input = input.slice(1);
 
+    // base64画像を含む巨大なフィールドもあるため、1文字ずつ連結せずsliceで切り出す
     var rows = [];
     var row = [];
-    var field = "";
-    var inQuotes = false;
+    var i = 0;
+    var len = input.length;
 
-    for (var i = 0; i < input.length; i++) {
-      var c = input[i];
-
-      if (inQuotes) {
-        if (c === '"') {
-          if (input[i + 1] === '"') {
-            field += '"';
-            i++;
-          } else {
-            inQuotes = false;
+    while (i < len) {
+      var field;
+      if (input[i] === '"') {
+        var parts = [];
+        var start = i + 1;
+        while (true) {
+          var q = input.indexOf('"', start);
+          if (q === -1) {
+            parts.push(input.slice(start));
+            i = len;
+            break;
           }
-        } else {
-          field += c;
+          parts.push(input.slice(start, q));
+          if (input[q + 1] === '"') {
+            parts.push('"');
+            start = q + 2;
+          } else {
+            i = q + 1;
+            break;
+          }
         }
-        continue;
+        field = parts.join("");
+        // 閉じクォートの後ろに区切り以外の文字があれば、そのままフィールドに含める
+        var tailEnd = i;
+        while (tailEnd < len && input[tailEnd] !== "," && input[tailEnd] !== "\r" && input[tailEnd] !== "\n") tailEnd++;
+        field += input.slice(i, tailEnd);
+        i = tailEnd;
+      } else {
+        var end = i;
+        while (end < len && input[end] !== "," && input[end] !== "\r" && input[end] !== "\n") end++;
+        field = input.slice(i, end);
+        i = end;
       }
 
-      if (c === '"') {
-        inQuotes = true;
-      } else if (c === ",") {
-        row.push(field);
-        field = "";
-      } else if (c === "\r") {
-        if (input[i + 1] !== "\n") {
-          row.push(field);
-          field = "";
-          rows.push(row);
-          row = [];
-        }
-      } else if (c === "\n") {
-        row.push(field);
-        field = "";
+      row.push(field);
+      if (i >= len) break;
+      var sep = input[i];
+      i++;
+      if (sep === "\r" || sep === "\n") {
+        if (sep === "\r" && input[i] === "\n") i++;
         rows.push(row);
         row = [];
-      } else {
-        field += c;
       }
     }
 
-    if (field !== "" || row.length > 0) {
-      row.push(field);
-      rows.push(row);
-    }
+    if (row.length > 0) rows.push(row);
 
     return rows.filter(function (r) {
       return !(r.length === 1 && r[0].trim() === "");
@@ -184,8 +188,11 @@ window.CardMaker = window.CardMaker || {};
     return cells.map(csvEscape).join(",");
   }
 
+  // CSVに埋め込む画像の長辺の上限(px)。元画像のままだとCSVが巨大になり読み込めなくなる
+  var CSV_ART_MAX_SIZE = 1200;
+
   /**
-   * カード画像をCSVの画像列に入れる文字列にする。通常はPNGのbase64データURL。
+   * カード画像をCSVの画像列に入れる文字列にする。通常は縮小したJPEGのbase64データURL。
    * CORS非対応で汚染された画像はcanvasから読み出せないため、元のURLをそのまま入れる。
    */
   function artToCsvField(card) {
@@ -193,11 +200,15 @@ window.CardMaker = window.CardMaker || {};
     if (!img) return "";
     if (card.artTainted) return img.src || "";
     try {
+      var scale = Math.min(1, CSV_ART_MAX_SIZE / Math.max(img.naturalWidth, img.naturalHeight));
       var canvas = document.createElement("canvas");
-      canvas.width = img.naturalWidth;
-      canvas.height = img.naturalHeight;
-      canvas.getContext("2d").drawImage(img, 0, 0);
-      return canvas.toDataURL("image/png");
+      canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+      var ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL("image/jpeg", 0.9);
     } catch (e) {
       return img.src && !/^blob:/i.test(img.src) ? img.src : "";
     }

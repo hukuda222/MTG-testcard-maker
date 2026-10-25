@@ -430,19 +430,30 @@
     img.src = objectUrl;
   }
 
-  // CSVの画像列(URL・base64)を対象カードに読み込む。失敗しても他のカードの読み込みは続ける
+  // CSVの画像列(URL・base64)を対象カードに読み込む。失敗しても他のカードの読み込みは続ける。
+  // 大量の画像を同時にデコードするとメモリが足りなくなるため、1枚ずつ順番に読み込む
+  function loadCsvArtSequentially(list) {
+    var index = 0;
+    function next() {
+      if (index >= list.length) return;
+      loadCsvArt(list[index++]).then(next, next);
+    }
+    next();
+  }
+
   function loadCsvArt(card) {
     var src = card.artSource;
     delete card.artSource;
-    if (!src) return;
+    if (!src) return Promise.resolve();
     src = normalizeBase64Image(src);
-    fetch(src)
+    return fetch(src)
       .then(function (res) {
         if (!res.ok) throw new Error(res.status);
         return res.blob();
       })
       .then(function (blob) {
         var objectUrl = URL.createObjectURL(blob);
+        return new Promise(function (resolve) {
         var img = new Image();
         img.onload = function () {
           card.artImage = img;
@@ -454,11 +465,14 @@
             renderPreview();
           }
           renderDeckList();
+          resolve();
         };
         img.onerror = function () {
           URL.revokeObjectURL(objectUrl);
+          resolve();
         };
         img.src = objectUrl;
+        });
       })
       .catch(function () {});
   }
@@ -646,7 +660,7 @@
       populateFormFromCurrentCard();
       renderPreview();
       renderDeckList();
-      accepted.forEach(loadCsvArt);
+      loadCsvArtSequentially(accepted);
       csvInput.value = "";
     };
     reader.readAsText(file, "UTF-8");
