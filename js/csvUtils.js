@@ -35,6 +35,7 @@ window.CardMaker = window.CardMaker || {};
   addAliases("rulesText", ["rulestext", "rules", "ルールテキスト"]);
   addAliases("flavorText", ["flavortext", "flavor", "フレイバーテキスト", "フレイバー"]);
   addAliases("copies", ["copies", "count", "枚数", "印刷枚数"]);
+  addAliases("artSource", ["image", "art", "画像", "イラスト"]);
 
   function normalizeHeader(h) {
     var t = String(h || "").trim();
@@ -141,7 +142,9 @@ window.CardMaker = window.CardMaker || {};
       copies: parseCopiesCell(record.copies),
       artImage: null,
       artObjectUrl: null,
-      artFileName: ""
+      artFileName: "",
+      // 画像列(URLまたはbase64)。読み込みはapp.js側で非同期に行う
+      artSource: String(record.artSource || "").trim()
     };
   }
 
@@ -181,9 +184,28 @@ window.CardMaker = window.CardMaker || {};
     return cells.map(csvEscape).join(",");
   }
 
+  /**
+   * カード画像をCSVの画像列に入れる文字列にする。通常はPNGのbase64データURL。
+   * CORS非対応で汚染された画像はcanvasから読み出せないため、元のURLをそのまま入れる。
+   */
+  function artToCsvField(card) {
+    var img = card.artImage;
+    if (!img) return "";
+    if (card.artTainted) return img.src || "";
+    try {
+      var canvas = document.createElement("canvas");
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
+      canvas.getContext("2d").drawImage(img, 0, 0);
+      return canvas.toDataURL("image/png");
+    } catch (e) {
+      return img.src && !/^blob:/i.test(img.src) ? img.src : "";
+    }
+  }
+
   /** カードのデータモデル配列(cardsFromCsvTextと同形式)からCSVテキストを生成する */
   function cardsToCsvText(cards) {
-    var header = ["名前", "マナコスト", "カードタイプ", "その他のタイプ", "パワー", "タフネス", "忠誠度", "守備値", "ルールテキスト", "フレイバーテキスト", "枚数"];
+    var header = ["名前", "マナコスト", "カードタイプ", "その他のタイプ", "パワー", "タフネス", "忠誠度", "守備値", "ルールテキスト", "フレイバーテキスト", "枚数", "画像"];
     var rows = [header].concat(
       (cards || []).map(function (card) {
         return [

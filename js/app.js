@@ -430,11 +430,58 @@
     img.src = objectUrl;
   }
 
+  // CSVの画像列(URL・base64)を対象カードに読み込む。失敗しても他のカードの読み込みは続ける
+  function loadCsvArt(card) {
+    var src = card.artSource;
+    delete card.artSource;
+    if (!src) return;
+    src = normalizeBase64Image(src);
+    fetch(src)
+      .then(function (res) {
+        if (!res.ok) throw new Error(res.status);
+        return res.blob();
+      })
+      .then(function (blob) {
+        var objectUrl = URL.createObjectURL(blob);
+        var img = new Image();
+        img.onload = function () {
+          card.artImage = img;
+          card.artObjectUrl = objectUrl;
+          card.artFileName = /^data:/i.test(src) ? "CSV画像" : decodeURIComponent(src.split(/[?#]/)[0].split("/").pop() || "") || "CSV画像";
+          card.artTainted = false;
+          if (cards[currentIndex] === card) {
+            updateArtImageStatus();
+            renderPreview();
+          }
+          renderDeckList();
+        };
+        img.onerror = function () {
+          URL.revokeObjectURL(objectUrl);
+        };
+        img.src = objectUrl;
+      })
+      .catch(function () {});
+  }
+
   // Web上の画像をURLから取得する（CORSを許可しているサーバーのみ）。
   // blob: URLは発行元のページ内でしか有効でないため、他サイトのものは読めない。
   function loadArtFromUrl(url) {
     url = (url || "").trim();
     if (!url) return;
+    url = normalizeBase64Image(url);
+    if (/^data:/i.test(url)) {
+      fetch(url)
+        .then(function (res) {
+          return res.blob();
+        })
+        .then(function (blob) {
+          loadArtFromBlob(blob, "base64画像");
+        })
+        .catch(function () {
+          alert("base64画像を読み込めませんでした。データが正しいか確認してください。");
+        });
+      return;
+    }
     if (/^blob:/i.test(url) && url.indexOf("blob:" + location.origin) !== 0) {
       alert("他サイトの blob: URL は読み込めません。\n元のページで画像を右クリック →「画像をコピー」し、このページで Ctrl+V で貼り付けるか、画像をドラッグ&ドロップしてください。");
       return;
@@ -472,6 +519,26 @@
     img.src = url;
   }
 
+  // "data:"の付いていない生のbase64文字列は、先頭のマジックナンバーから形式を推定してdata URLにする
+  function normalizeBase64Image(text) {
+    if (/^data:/i.test(text)) return text.replace(/\s+/g, "");
+    var compact = text.replace(/\s+/g, "");
+    if (compact.length < 32 || !/^[A-Za-z0-9+/]+=*$/.test(compact)) return text;
+    var mime =
+      compact.indexOf("iVBOR") === 0 ? "image/png" :
+      compact.indexOf("/9j/") === 0 ? "image/jpeg" :
+      compact.indexOf("R0lGOD") === 0 ? "image/gif" :
+      compact.indexOf("UklGR") === 0 ? "image/webp" :
+      compact.indexOf("PHN2Zy") === 0 || compact.indexOf("PD94bW") === 0 ? "image/svg+xml" :
+      null;
+    return mime ? "data:" + mime + ";base64," + compact : text;
+  }
+
+  function isImageText(text) {
+    text = (text || "").trim();
+    return /^(https?|blob|data):/i.test(text) || /^data:/.test(normalizeBase64Image(text));
+  }
+
   function findImageFile(dataTransfer) {
     if (!dataTransfer) return null;
     var files = dataTransfer.files || [];
@@ -497,7 +564,7 @@
     if (target === artUrlInput) return;
     if (!isTextField) {
       var text = event.clipboardData && event.clipboardData.getData("text/plain");
-      if (text && /^(https?|blob):/i.test(text.trim())) {
+      if (isImageText(text)) {
         event.preventDefault();
         loadArtFromUrl(text);
       }
@@ -579,6 +646,7 @@
       populateFormFromCurrentCard();
       renderPreview();
       renderDeckList();
+      accepted.forEach(loadCsvArt);
       csvInput.value = "";
     };
     reader.readAsText(file, "UTF-8");

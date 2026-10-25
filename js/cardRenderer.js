@@ -590,33 +590,56 @@ window.CardMaker = window.CardMaker || {};
 
   /** 黒マナ: 頭蓋骨 */
   function drawSkullIcon(ctx, cx, cy, r, color, bgColor) {
-    ctx.beginPath();
-    ctx.arc(cx, cy - r * 0.12, r * 0.62, Math.PI, 0, false);
-    ctx.lineTo(cx + r * 0.5, cy + r * 0.22);
-    ctx.quadraticCurveTo(cx + r * 0.42, cy + r * 0.55, cx + r * 0.2, cy + r * 0.6);
-    ctx.lineTo(cx + r * 0.1, cy + r * 0.42);
-    ctx.lineTo(cx - r * 0.1, cy + r * 0.42);
-    ctx.lineTo(cx - r * 0.2, cy + r * 0.6);
-    ctx.quadraticCurveTo(cx - r * 0.42, cy + r * 0.55, cx - r * 0.5, cy + r * 0.22);
-    ctx.closePath();
+    function px(x) { return cx + r * x; }
+    function py(y) { return cy + r * y; }
+
+    // 頭蓋（丸い頭頂から頬骨へ）と下顎
     ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.moveTo(px(-0.5), py(0.12));
+    ctx.bezierCurveTo(px(-0.66), py(-0.2), px(-0.56), py(-0.74), px(0), py(-0.76));
+    ctx.bezierCurveTo(px(0.56), py(-0.74), px(0.66), py(-0.2), px(0.5), py(0.12));
+    ctx.quadraticCurveTo(px(0.44), py(0.3), px(0.3), py(0.34));
+    ctx.lineTo(px(0.3), py(0.66));
+    ctx.quadraticCurveTo(px(0.3), py(0.76), px(0.2), py(0.76));
+    ctx.lineTo(px(-0.2), py(0.76));
+    ctx.quadraticCurveTo(px(-0.3), py(0.76), px(-0.3), py(0.66));
+    ctx.lineTo(px(-0.3), py(0.34));
+    ctx.quadraticCurveTo(px(-0.44), py(0.3), px(-0.5), py(0.12));
+    ctx.closePath();
     ctx.fill();
 
     ctx.fillStyle = bgColor;
-    ctx.beginPath();
-    ctx.ellipse(cx - r * 0.24, cy - r * 0.05, r * 0.15, r * 0.19, 0, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.beginPath();
-    ctx.ellipse(cx + r * 0.24, cy - r * 0.05, r * 0.15, r * 0.19, 0, 0, Math.PI * 2);
-    ctx.fill();
+    // 目: 内側が下がった大きな眼窩
+    [-1, 1].forEach(function (s) {
+      ctx.beginPath();
+      ctx.moveTo(px(s * 0.06), py(-0.12));
+      ctx.quadraticCurveTo(px(s * 0.2), py(-0.3), px(s * 0.42), py(-0.22));
+      ctx.quadraticCurveTo(px(s * 0.46), py(0.04), px(s * 0.26), py(0.12));
+      ctx.quadraticCurveTo(px(s * 0.08), py(0.12), px(s * 0.06), py(-0.12));
+      ctx.closePath();
+      ctx.fill();
+    });
 
-    ctx.fillStyle = color;
+    // 鼻: 逆ハート型の小さな穴
     ctx.beginPath();
-    ctx.moveTo(cx, cy + r * 0.08);
-    ctx.lineTo(cx - r * 0.09, cy + r * 0.26);
-    ctx.lineTo(cx + r * 0.09, cy + r * 0.26);
+    ctx.moveTo(px(0), py(0.12));
+    ctx.lineTo(px(-0.08), py(0.3));
+    ctx.quadraticCurveTo(px(0), py(0.26), px(0.08), py(0.3));
     ctx.closePath();
     ctx.fill();
+
+    // 歯の隙間
+    ctx.lineWidth = Math.max(1, r * 0.05);
+    ctx.strokeStyle = bgColor;
+    ctx.beginPath();
+    ctx.moveTo(px(-0.3), py(0.5));
+    ctx.lineTo(px(0.3), py(0.5));
+    [-0.15, 0, 0.15].forEach(function (x) {
+      ctx.moveTo(px(x), py(0.4));
+      ctx.lineTo(px(x), py(0.76));
+    });
+    ctx.stroke();
   }
 
   /** 赤マナ: 本家風の火の玉(下半分を占める黒い球から1本の炎が右側から上をぐるっと回って伸び、内側に背景色の渦模様) */
@@ -674,21 +697,32 @@ window.CardMaker = window.CardMaker || {};
 
   /** 緑マナ: 木 */
   function drawTreeIcon(ctx, cx, cy, r, color) {
-    ctx.beginPath();
-    ctx.moveTo(cx, cy - r * 0.85);
-    ctx.lineTo(cx + r * 0.45, cy - r * 0.18);
-    ctx.lineTo(cx + r * 0.25, cy - r * 0.18);
-    ctx.lineTo(cx + r * 0.6, cy + r * 0.3);
-    ctx.lineTo(cx + r * 0.16, cy + r * 0.3);
-    ctx.lineTo(cx + r * 0.14, cy + r * 0.78);
-    ctx.lineTo(cx - r * 0.14, cy + r * 0.78);
-    ctx.lineTo(cx - r * 0.16, cy + r * 0.3);
-    ctx.lineTo(cx - r * 0.6, cy + r * 0.3);
-    ctx.lineTo(cx - r * 0.25, cy - r * 0.18);
-    ctx.lineTo(cx - r * 0.45, cy - r * 0.18);
-    ctx.closePath();
     ctx.fillStyle = color;
+
+    // 幹（根元を少し広げる）
+    ctx.beginPath();
+    ctx.moveTo(cx - r * 0.1, cy + r * 0.05);
+    ctx.lineTo(cx + r * 0.1, cy + r * 0.05);
+    ctx.lineTo(cx + r * 0.13, cy + r * 0.68);
+    ctx.quadraticCurveTo(cx + r * 0.16, cy + r * 0.78, cx + r * 0.28, cy + r * 0.8);
+    ctx.lineTo(cx - r * 0.28, cy + r * 0.8);
+    ctx.quadraticCurveTo(cx - r * 0.16, cy + r * 0.78, cx - r * 0.13, cy + r * 0.68);
+    ctx.closePath();
     ctx.fill();
+
+    // 丸い葉の茂み
+    [
+      [0, -0.42, 0.36],
+      [-0.33, -0.18, 0.3],
+      [0.33, -0.18, 0.3],
+      [-0.18, 0.08, 0.26],
+      [0.18, 0.08, 0.26],
+      [0, -0.12, 0.3]
+    ].forEach(function (c) {
+      ctx.beginPath();
+      ctx.arc(cx + r * c[0], cy + r * c[1], r * c[2], 0, Math.PI * 2);
+      ctx.fill();
+    });
   }
 
   /** 氷雪マナ: 雪の結晶 */
